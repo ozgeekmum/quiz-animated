@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Animation Trivia Trainer</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:#f5f5f0;color:#1a1a1a;min-height:100vh}
+#app{max-width:680px;margin:0 auto;padding:1rem}
+h1{font-size:22px;font-weight:500;margin-bottom:1.25rem}
+.tab-bar{display:flex;gap:6px;margin-bottom:1rem;flex-wrap:wrap}
+.tab{padding:6px 14px;border:1px solid #ccc;border-radius:8px;background:#fff;color:#555;cursor:pointer;font-size:13px}
+.tab.active{background:#1a1a1a;color:#fff;border-color:#1a1a1a;font-weight:500}
+.mode-bar{display:flex;gap:6px;margin-bottom:1.25rem}
+.mode-btn{padding:7px 20px;border:1px solid #ccc;border-radius:8px;background:#fff;color:#555;cursor:pointer;font-size:13px}
+.mode-btn.active{background:#1a1a1a;color:#fff;border-color:#1a1a1a;font-weight:500}
+.card{background:#fff;border:1px solid #e0e0d8;border-radius:12px;padding:1.25rem 1.5rem;margin-bottom:1rem}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:1rem}
+.stat{background:#f0efe8;border-radius:8px;padding:.75rem;text-align:center}
+.stat-n{font-size:22px;font-weight:500}
+.stat-l{font-size:11px;color:#888;margin-top:2px}
+.question{font-size:17px;font-weight:500;line-height:1.5;margin-bottom:1.25rem}
+.options{display:grid;gap:8px}
+.opt{padding:10px 14px;border:1px solid #ccc;border-radius:8px;background:#fff;color:#1a1a1a;cursor:pointer;text-align:left;font-size:14px;line-height:1.4;font-family:system-ui,sans-serif}
+.opt:hover:not(:disabled){background:#f5f5f0}
+.opt.correct{background:#eaf3de;border-color:#639922;color:#27500a}
+.opt.wrong{background:#fcebeb;border-color:#a32d2d;color:#791f1f}
+.opt:disabled{cursor:default}
+.feedback{font-size:13px;margin-top:.75rem;padding:.5rem .75rem;border-radius:8px}
+.feedback.correct{background:#eaf3de;color:#3b6d11}
+.feedback.wrong{background:#fcebeb;color:#a32d2d}
+.next-btn{margin-top:1rem;padding:8px 22px;border:1px solid #ccc;border-radius:8px;background:#fff;color:#1a1a1a;cursor:pointer;font-size:14px;font-family:system-ui,sans-serif}
+.next-btn:hover{background:#f0efe8}
+.score-card{text-align:center;padding:2rem}
+.score-big{font-size:52px;font-weight:500}
+.score-label{font-size:14px;color:#888;margin-top:.25rem}
+.score-msg{font-size:15px;color:#555;margin-top:1rem}
+.restart-btn{margin-top:1.5rem;padding:10px 28px;border:1px solid #ccc;border-radius:8px;background:#fff;color:#1a1a1a;cursor:pointer;font-size:14px;font-family:system-ui,sans-serif}
+.restart-btn:hover{background:#f0efe8}
+.study-search{width:100%;padding:9px 12px;border:1px solid #ccc;border-radius:8px;background:#fff;color:#1a1a1a;font-size:14px;font-family:system-ui,sans-serif;margin-bottom:1rem}
+.study-item{padding:.75rem 0;border-bottom:1px solid #f0efe8;display:flex;justify-content:space-between;align-items:baseline;gap:1rem}
+.study-item:last-child{border-bottom:none}
+.study-q{font-size:14px;color:#555;flex:1}
+.study-a{font-size:14px;font-weight:500;color:#1a1a1a;text-align:right;flex:1}
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>📺 Animation Trivia Trainer</h1>
+  <div class="tab-bar" id="tabs"></div>
+  <div class="mode-bar">
+    <button class="mode-btn active" onclick="setMode('quiz')" id="m-quiz">Quiz me</button>
+    <button class="mode-btn" onclick="setMode('study')" id="m-study">Study list</button>
+  </div>
+  <div id="main"></div>
+</div>
+<script>
+const DATA = {
+
+familyguy:{label:"Family Guy",items:[
+{q:"What is the name of the Griffin family dog?",a:"Brian",w:["Stewie","Quagmire","Cleveland"]},
+{q:"Who voices Peter Griffin?",a:"Seth MacFarlane",w:["Alex Borstein","Seth Green","Mila Kunis"]},
+{q:"Who voices Stewie Griffin?",a:"Seth MacFarlane",w:["Seth Green","Alex Borstein","Mike Henry"]},
+{q:"Who voices Meg Griffin?",a:"Mila Kunis",w:["Alex Borstein","Lacey Chabert","Mae Whitman"]},
+{q:"Who voices Lois Griffin?",a:"Alex Borstein",w:["Mila Kunis","Tara Strong","Wendy Schaal"]},
+{q:"Who voices Chris Griffin?",a:"Seth Green",w:["Seth MacFarlane","Mila Kunis","Mike Henry"]},
+{q:"Who voices Brian Griffin?",a:"Seth MacFarlane",w:["Seth Green","Norm MacDonald","Patrick Warburton"]},
+{q:"Who voices Quagmire?",a:"Seth MacFarlane",w:["Patrick Warburton","Mike Henry","Seth Green"]},
+{q:"Who voices Cleveland Brown?",a:"Mike Henry",w:["Seth MacFarlane","Alex Borstein","Arif Zahir"]},
+{q:"Who voices Joe Swanson?",a:"Patrick Warburton",w:["Seth MacFarlane","Mike Henry","Seth Green"]},
+{q:"What is Quagmire's famous catchphrase?",a:"Giggity giggity!",w:["Holy crap!","Bird is the word!","Freakin' sweet!"]},
+{q:"What is Peter Griffin's catchphrase when something irritates his knee?",a:"Ssss, ahh! Ssss, ahh!",w:["Giggity!","Holy crap!","Freakin' sweet!"]},
+{q:"What is Peter's most used exclamation?",a:"Holy crap!",w:["Giggity!","Sweet!","Freakin' sweet!"]},
+{q:"What does Stewie frequently call Brian when annoyed?",a:"Brian!",w:["Dog!","Fool!","Peasant!"]},
+{q:"What is Stewie's signature weapon of choice?",a:"A ray gun (laser gun)",w:["A knife","A bazooka","A football"]},
+{q:"In which town do the Griffins live?",a:"Quahog, Rhode Island",w:["Springfield","Langley Falls","South Park"]},
+{q:"What is the name of the Griffin family's favourite bar?",a:"The Drunken Clam",w:["Moe's Tavern","The Plow King","The Rusty Nail"]},
+{q:"What is the name of the evil stepdad character Peter befriends? (No — what is Peter's full name?)",a:"Peter Löwenbräu Griffin",w:["Peter James Griffin","Peter Brian Griffin","Peter Francis Griffin"]},
+{q:"What network airs Family Guy?",a:"Fox",w:["CBS","NBC","Adult Swim"]},
+{q:"In what year did Family Guy first air?",a:"1999",w:["1997","2001","2003"]},
+{q:"Who created Family Guy?",a:"Seth MacFarlane",w:["Matt Groening","Trey Parker","Mike Judge"]},
+{q:"Stewie Griffin's full name is Stewart Gilligan Griffin — what is his middle name?",a:"Gilligan",w:["James","Peter","Brian"]},
+{q:"What is the name of the baby who is Stewie's nemesis at daycare?",a:"Penelope",w:["Susie","Madison","Olivia"]},
+{q:"What is the name of Peter's boss at the brewery?",a:"Angela",w:["Diane","Carol","Patricia"]},
+{q:"What is the name of the show-within-a-show that Peter loves?",a:"Jolly Farm Revue",w:["Wheel of Fortune","American Idol","Hogan's Heroes"]},
+{q:"Which member of the Griffin family was voiced by a different actress in the pilot?",a:"Meg (voiced by Lacey Chabert before Mila Kunis)",w:["Lois","Stewie","Chris"]},
+{q:"What is the name of Quagmire's cat?",a:"James",w:["Mr Whiskers","Mittens","Tom"]},
+{q:"Which Family Guy character is in a wheelchair?",a:"Joe Swanson",w:["Quagmire","Cleveland","Peter"]},
+{q:"What is the name of Peter and Lois's neighbour Herbert's young crush?",a:"Chris Griffin",w:["Meg Griffin","Stewie Griffin","Quagmire"]},
+{q:"What is the name of Peter's Irish father?",a:"Francis Griffin",w:["Mickey Griffin","Paddy Griffin","Seamus Griffin"]},
+{q:"What is the name of Cleveland's diner in The Cleveland Show spin-off?",a:"Cleveland's restaurant / The Brown Tubbs Diner",w:["Griffin's Grill","Quahog Diner","The Clam"]},
+{q:"Who is the Mayor of Quahog?",a:"Mayor Adam West",w:["Mayor Quimby","Mayor McDaniels","Mayor Price"]},
+{q:"What is the name of the Griffin's TV station news anchor?",a:"Tom Tucker",w:["Kent Brockman","Dan Rather","Ollie Williams"]},
+{q:"Who provides the weather on Quahog 5 News in very short reports?",a:"Ollie Williams",w:["Tom Tucker","Diane Simmons","Joyce Kinney"]},
+{q:"What is the name of the mentally challenged character voiced by Mike Henry?",a:"Bruce",w:["Mort","Opie","Ernie the Giant Chicken"]},
+{q:"What is the name of the giant chicken Peter regularly fights?",a:"Ernie",w:["Rocky","Chuck","Frankie"]},
+{q:"Which Family Guy character is a paedophile played for dark comedy?",a:"Herbert the Pervert",w:["Quagmire","Cleveland","Joe"]},
+{q:"What celebrity guest voiced herself in many Family Guy episodes as a running joke about Meg?",a:"The character is just Meg — but which actress played Meg originally?",a:"Lacey Chabert",w:["Lindsay Lohan","Britney Spears","Paris Hilton"]},
+{q:"What is the name of Lois Griffin's wealthy father?",a:"Carter Pewterschmidt",w:["Arthur Pewterschmidt","Franklin Pewterschmidt","Walter Pewterschmidt"]},
+{q:"What song does Peter famously get stuck in his head (and the audience's) in a cutaway?",a:"Surfin' Bird by The Trashmen",w:["Eye of the Tiger","Final Countdown","Never Gonna Give You Up"]},
+{q:"What is the subtitle of the Family Guy Star Wars parody episode?",a:"Blue Harvest",w:["Something Something Something Dark Side","It's a Trap","A New Hope"]},
+{q:"What is Stewie's British-accented catchphrase implying world domination?",a:"Blast! / What the deuce!",w:["Giggity!","Holy crap!","Freakin' sweet!"]},
+{q:"What is the name of Brian's ex-girlfriend who is also a novelist?",a:"Jillian",w:["Lois","Carolyn","Tracy"]},
+{q:"What does Brian Griffin aspire to be?",a:"A novelist / writer",w:["An actor","A journalist","A pilot"]},
+{q:"Who killed Brian Griffin — and then brought him back — in season 12?",a:"A car hit him; he was later replaced by Vinny then revived via time travel",w:["Stewie shot him","Peter ran him over","Joe shot him"]},
+{q:"What is the name of Quagmire's transgender father?",a:"Ida Davis (formerly Dan Quagmire)",w:["Francis Quagmire","Glen Sr","Bobby Quagmire"]}
+]},
+
+simpsons:{label:"The Simpsons",items:[
+{q:"Who created The Simpsons?",a:"Matt Groening",w:["Seth MacFarlane","Mike Judge","Al Jean"]},
+{q:"In which fictional town do the Simpsons live?",a:"Springfield",w:["Shelbyville","Capital City","Ogdenville"]},
+{q:"What is Homer Simpson's middle name?",a:"Jay",w:["James","John","Joseph"]},
+{q:"Who voices Homer Simpson?",a:"Dan Castellaneta",w:["Hank Azaria","Harry Shearer","Julie Kavner"]},
+{q:"Who voices Marge Simpson?",a:"Julie Kavner",w:["Nancy Cartwright","Yeardley Smith","Pamela Hayden"]},
+{q:"Who voices Bart Simpson?",a:"Nancy Cartwright",w:["Yeardley Smith","Julie Kavner","Pamela Hayden"]},
+{q:"Who voices Lisa Simpson?",a:"Yeardley Smith",w:["Nancy Cartwright","Julie Kavner","Pamela Hayden"]},
+{q:"Who voices Maggie Simpson (her rare spoken words)?",a:"Various — famously Elizabeth Taylor said her first word",w:["Nancy Cartwright","Yeardley Smith","Julie Kavner"]},
+{q:"Who voices Mr Burns?",a:"Harry Shearer",w:["Hank Azaria","Dan Castellaneta","Kelsey Grammer"]},
+{q:"Who voices Ned Flanders?",a:"Harry Shearer",w:["Dan Castellaneta","Hank Azaria","Pamela Hayden"]},
+{q:"Who voices Apu Nahasapeemapetilon?",a:"Hank Azaria",w:["Harry Shearer","Dan Castellaneta","Karl Wiedergott"]},
+{q:"Who voices Chief Wiggum?",a:"Hank Azaria",w:["Harry Shearer","Dan Castellaneta","Tom Kane"]},
+{q:"Who voices Krusty the Clown?",a:"Dan Castellaneta",w:["Hank Azaria","Harry Shearer","Jon Lovitz"]},
+{q:"Who voices Sideshow Bob?",a:"Kelsey Grammer",w:["David Hyde Pierce","Hank Azaria","Harry Shearer"]},
+{q:"What is Homer's catchphrase when he makes a mistake?",a:"D'oh!",w:["Excellent!","Why you little—!","Mmm..."]},
+{q:"What is Mr Burns's catchphrase?",a:"Excellent!",w:["D'oh!","Okily dokily!","Ay caramba!"]},
+{q:"What is Ned Flanders's catchphrase?",a:"Okily dokily!",w:["Excellent!","D'oh!","Cowabunga!"]},
+{q:"What is Bart's catchphrase of rebellious indifference?",a:"Eat my shorts!",w:["Cowabunga!","Ay caramba!","Don't have a cow, man!"]},
+{q:"What phrase does Bart say when shocked?",a:"Ay caramba!",w:["D'oh!","Cowabunga!","Eat my shorts!"]},
+{q:"What is the name of the bar Homer frequents?",a:"Moe's Tavern",w:["The Drunken Clam","The Rusty Nail","Cheers"]},
+{q:"What is the name of Homer's bar friend who runs the tavern?",a:"Moe Szyslak",w:["Lenny Leonard","Carl Carlson","Barney Gumble"]},
+{q:"What is the name of Homer's overweight best friend who belches?",a:"Barney Gumble",w:["Lenny Leonard","Carl Carlson","Moe Szyslak"]},
+{q:"What does Homer work as at the nuclear plant?",a:"Safety inspector",w:["Engineer","Security guard","Janitor"]},
+{q:"What is the name of Homer's nuclear power plant employer?",a:"Springfield Nuclear Power Plant",w:["Shelbyville Energy","Capital City Power","Globex Corporation"]},
+{q:"What instrument does Lisa Simpson play?",a:"Saxophone (alto)",w:["Trumpet","Flute","Clarinet"]},
+{q:"What is the name of Bart's best friend?",a:"Milhouse Van Houten",w:["Nelson Muntz","Martin Prince","Ralph Wiggum"]},
+{q:"What is the name of the school bully who says 'Ha-ha!'?",a:"Nelson Muntz",w:["Jimbo Jones","Kearney Zzyzwicz","Dolph Starbeam"]},
+{q:"Who is the principal of Springfield Elementary?",a:"Principal Skinner",w:["Superintendent Chalmers","Principal Valiant","Principal Dondelinger"]},
+{q:"What is Superintendent Chalmers's famous catchphrase directed at Skinner?",a:"Skinner!",w:["D'oh!","Excellent!","Okily dokily!"]},
+{q:"What is the name of the Simpsons' next-door neighbour?",a:"Ned Flanders",w:["Sideshow Bob","Krusty","Hans Moleman"]},
+{q:"What is the name of Ned Flanders's deceased wife?",a:"Maude Flanders",w:["Edna Flanders","Helen Lovejoy","Brandine Spuckler"]},
+{q:"Who is the school teacher who later married Principal Skinner?",a:"Edna Krabappel",w:["Miss Hoover","Miss Botz","Miss Finch"]},
+{q:"What is the catchphrase of Edna Krabappel?",a:"Ha! (sardonic laugh)",w:["D'oh!","Excellent!","Okily dokily!"]},
+{q:"What is the name of Krusty the Clown's real name?",a:"Herschel Shmoikel Pinchas Yerucham Krustofsky",w:["Rory B Bellows","Bob Terwilliger","Sideshow Mel"]},
+{q:"What is the name of Krusty's sidekick who became a villain?",a:"Sideshow Bob",w:["Sideshow Mel","Sideshow Luke Perry","Krusty Jr"]},
+{q:"What crime is Sideshow Bob obsessed with committing?",a:"Killing Bart Simpson",w:["Robbing the nuclear plant","Framing Krusty","Taking over Springfield"]},
+{q:"What is the name of the convenience store in The Simpsons?",a:"Kwik-E-Mart",w:["Stop 'N' Shop","Quick Mart","Speedy Mart"]},
+{q:"What is the name of Apu's wife?",a:"Manjula",w:["Sanjay","Meena","Priya"]},
+{q:"How many children do Apu and Manjula have?",a:"8 (octuplets)",w:["4","6","3"]},
+{q:"What is the name of Homer's father?",a:"Abraham (Grampa) Simpson",w:["Orville Simpson","Herbert Simpson","Jasper Simpson"]},
+{q:"What is the name of Homer's long-lost brother?",a:"Herb Powell",w:["Sideshow Bob","Frank Grimes","Cecil Terwilliger"]},
+{q:"Who played Homer's brother Herb Powell?",a:"Danny DeVito",w:["Jon Lovitz","Phil Hartman","Albert Brooks"]},
+{q:"What is the name of the Simpsons' cat?",a:"Snowball (various Snowball IIs etc.)",w:["Fluffy","Whiskers","Mr Bigglesworth"]},
+{q:"What is the name of the Simpsons' dog?",a:"Santa's Little Helper",w:["Laddie","Rex","Bongo"]},
+{q:"In which year did The Simpsons first air?",a:"1989",w:["1987","1991","1993"]},
+{q:"What is the longest-running animated series in US history?",a:"The Simpsons",w:["Family Guy","South Park","Looney Tunes"]},
+{q:"What is the name of Springfield's mad scientist character?",a:"Professor Frink",w:["Professor Honeycutt","Dr Nick Riviera","Dr Hibbert"]},
+{q:"What is Dr Nick Riviera's catchphrase?",a:"Hi everybody!",w:["D'oh!","Excellent!","Okily dokily!"]},
+{q:"What is the response the crowd gives to Dr Nick's greeting?",a:"Hi Dr Nick!",w:["Hello!","Howdy!","Hey there!"]},
+{q:"What is the name of the character who says 'I didn't do it'?",a:"Bart Simpson",w:["Nelson Muntz","Ralph Wiggum","Homer Simpson"]},
+{q:"What is Ralph Wiggum's most famous nonsensical quote?",a:"My cat's breath smells like cat food",w:["I eat my own face","Bushes are nice","I'm Idaho"]},
+{q:"Who is Chief Wiggum's son?",a:"Ralph Wiggum",w:["Martin Prince","Milhouse Van Houten","Nelson Muntz"]},
+{q:"What is the name of the Simpsons' episode where Homer goes to space?",a:"Deep Space Homer",w:["Bart Gets Hit by a Car","Homer vs. the Eighteenth Amendment","Cape Feare"]},
+{q:"Which famous musician appeared in the episode with Homer's barbershop quartet?",a:"George Harrison (The Beatles)",w:["Paul McCartney","Ringo Starr","David Bowie"]},
+{q:"What is the name of Bart's bartender uncle — no wait — what is Homer's sister-in-law's name?",a:"Patty and Selma Bouvier",w:["Marge and Linda Bouvier","Patty and Linda Bouvier","Edna and Patty Bouvier"]},
+{q:"What are Marge's sisters called?",a:"Patty and Selma",w:["Pam and Sharon","Betty and Wilma","Edna and Patty"]},
+{q:"What do Patty and Selma constantly smoke?",a:"Cigarettes",w:["Cigars","Pipes","They don't smoke"]},
+{q:"What is the name of the show Patty and Selma are obsessed with?",a:"MacGyver",w:["Magnum P.I.","Rockford Files","Remington Steele"]},
+{q:"What is the name of the Simpsons' episode considered the greatest ever?",a:"Cape Feare",w:["Homer at the Bat","Who Shot Mr Burns","Marge vs. the Monorail"]},
+{q:"Who sang the Monorail Song in the beloved episode Marge vs. the Monorail?",a:"Phil Hartman (as Lyle Lanley)",w:["Dan Castellaneta","Hank Azaria","Jon Lovitz"]},
+{q:"What is the iconic opening sequence of The Simpsons called?",a:"The couch gag",w:["The title sequence","The intro gag","The opening joke"]},
+{q:"What chalkboard gag does Bart write at the start of each episode?",a:"A different punishment sentence each episode",w:["The same sentence every episode","His name 100 times","I will not skateboard in the halls"]},
+{q:"What is the name of Homer's nemesis at work?",a:"Frank Grimes (Grimey)",w:["Lenny Leonard","Carl Carlson","Smithers"]},
+{q:"Who is Mr Burns's loyal assistant?",a:"Waylon Smithers",w:["Frank Grimes","Lenny Leonard","Carl Carlson"]},
+{q:"What is the name of the TV show Homer watches that is just two men fighting?",a:"TitanMania / various",w:["Knightboat","Duff Bowl","Smartline"]},
+{q:"What is Homer's favourite beer?",a:"Duff Beer",w:["Pawtucket Patriot","Heisler Beer","Buzz Cola"]},
+{q:"What is the famous Springfield mystery: who shot Mr Burns?",a:"Maggie Simpson",w:["Homer Simpson","Waylon Smithers","Sideshow Bob"]}
+]},
+
+southpark:{label:"South Park",items:[
+{q:"Who created South Park?",a:"Trey Parker and Matt Stone",w:["Seth MacFarlane","Mike Judge","Dan Harmon"]},
+{q:"In which US state is South Park set?",a:"Colorado",w:["Wyoming","Montana","Utah"]},
+{q:"What is Cartman's full name?",a:"Eric Theodore Cartman",w:["Eric James Cartman","Eric Andrew Cartman","Eric Robert Cartman"]},
+{q:"Who voices Eric Cartman?",a:"Trey Parker",w:["Matt Stone","Isaac Hayes","Adrien Beard"]},
+{q:"Who voices Stan Marsh?",a:"Trey Parker",w:["Matt Stone","Isaac Hayes","Adrien Beard"]},
+{q:"Who voices Kyle Broflovski?",a:"Matt Stone",w:["Trey Parker","Isaac Hayes","Adrien Beard"]},
+{q:"Who voices Kenny McCormick?",a:"Matt Stone",w:["Trey Parker","Adrien Beard","Isaac Hayes"]},
+{q:"Who voices Chef?",a:"Isaac Hayes",w:["Trey Parker","Matt Stone","Adrien Beard"]},
+{q:"What is Cartman's catchphrase about authority?",a:"Screw you guys, I'm going home!",w:["Oh my God, they killed Kenny!","Respect my authoritah!","I'm not fat, I'm big-boned!"]},
+{q:"What does Cartman say when demanding respect?",a:"Respect my authoritah!",w:["You will respect me!","I am the law!","Screw you guys!"]},
+{q:"What do Stan and Kyle say every time Kenny dies?",a:"Oh my God, they killed Kenny! / You bastards!",w:["Not again Kenny!","Kenny's dead again!","Poor Kenny!"]},
+{q:"What is Kenny's family known for being?",a:"Extremely poor",w:["Extremely religious","Extremely violent","Extremely smart"]},
+{q:"What does Kenny wear that muffles his voice?",a:"An orange parka with the hood drawn tight",w:["A balaclava","A scarf","A hoodie"]},
+{q:"What is Cartman's catchphrase about his weight?",a:"I'm not fat, I'm big-boned!",w:["I'm fluffy!","I'm husky!","I'm just well-fed!"]},
+{q:"What is the name of Cartman's mother?",a:"Liane Cartman",w:["Linda Cartman","Carol Cartman","Sharon Cartman"]},
+{q:"What is the name of Stan's dad?",a:"Randy Marsh",w:["Gerald Broflovski","Stuart McCormick","Stephen Stotch"]},
+{q:"What is the name of Kyle's little brother?",a:"Ike Broflovski",w:["Craig Broflovski","Clyde Broflovski","Tweek Broflovski"]},
+{q:"Where is Ike originally from?",a:"Canada (he was adopted)",w:["Mexico","Russia","China"]},
+{q:"What is the name of Cartman's favourite TV superhero alter ego?",a:"The Coon",w:["Professor Chaos","General Disarray","ManBearPig"]},
+{q:"What is Butters's full name?",a:"Leopold Butters Stotch",w:["Leonard Butters Stotch","Louis Butters Stotch","Lawrence Butters Stotch"]},
+{q:"Who voices Butters?",a:"Matt Stone",w:["Trey Parker","Adrien Beard","Isaac Hayes"]},
+{q:"What is Butters's supervillain name?",a:"Professor Chaos",w:["General Disarray","The Coon","ManBearPig"]},
+{q:"What is the name of the school the boys attend?",a:"South Park Elementary",w:["Stark's Pond Elementary","Colorado Kids School","Mountain View Elementary"]},
+{q:"Who is their teacher in earlier seasons?",a:"Mr Garrison",w:["Chef","Mr Mackey","Principal Victoria"]},
+{q:"What is Mr Mackey's catchphrase?",a:"M'kay?",w:["You guys!","Oh my God!","Respect my authoritah!"]},
+{q:"What is Mr Mackey's job at the school?",a:"School counsellor",w:["Principal","Teacher","Janitor"]},
+{q:"What is the name of the Goth kids' favourite thing to do?",a:"Be non-conformist and smoke",w:["Skateboard","Write poetry","Listen to death metal"]},
+{q:"What creature does Al Gore obsessively warn about in South Park?",a:"ManBearPig",w:["Climate change","Snuke","The Underpants Gnomes"]},
+{q:"What are the Underpants Gnomes' three-step business plan?",a:"1. Collect underpants, 2. ???, 3. Profit",w:["1. Steal, 2. Sell, 3. Profit","1. Underpants, 2. Money, 3. Profit","1. Gnomes, 2. Underpants, 3. Profit"]},
+{q:"What is the name of the redneck who always threatens to 'take our jobs'?",a:"Darryl Weathers ('They took our jobs!')",w:["Randy Marsh","Stuart McCormick","Jimbo Kern"]},
+{q:"What is the catchphrase version of 'They took our jobs'?",a:"Derka derka! / Durka durr!",w:["Get out!","Not in my town!","Go back home!"]},
+{q:"In what year did South Park first air?",a:"1997",w:["1994","1999","2001"]},
+{q:"What network airs South Park?",a:"Comedy Central",w:["Fox","HBO","Adult Swim"]},
+{q:"What is the name of the boys' favourite fast food restaurant?",a:"City Wok / Raisins / various — most associated?",a:"Raisins (the Hooters parody)",w:["City Wok","Casa Bonita","McDonald's"]},
+{q:"What is the name of Cartman's favourite restaurant he gets Stan to help him reach?",a:"Casa Bonita",w:["City Wok","Raisins","Applebee's"]},
+{q:"Who is the city's incompetent police officer?",a:"Officer Barbrady",w:["Officer Mitch","Officer Craig","Officer Dan"]},
+{q:"What is the name of the Canadian duo who appear in many episodes?",a:"Terrance and Phillip",w:["Bob and Doug McKenzie","Wayne and Garth","Bill and Fosse"]},
+{q:"What are Terrance and Phillip famous for?",a:"Farting",w:["Swearing","Fighting","Singing"]},
+{q:"What religion is Kyle Broflovski?",a:"Jewish",w:["Catholic","Mormon","Protestant"]},
+{q:"What religion is the subject of the famous episode making fun of beliefs with 'This is what Scientologists actually believe'?",a:"Scientology",w:["Mormonism","Catholicism","Islam"]},
+{q:"What is the name of the episode parodying Mormonism with the song 'Dumb Dumb Dumb'?",a:"All About Mormons (the dum dum dum dum dum song)",w:["Trapped in the Closet","Bloody Mary","Do the Handicapped Go to Hell"]},
+{q:"What is the name of Token Black's character — what is his real name?",a:"Token Black (later retconned to Tolkien Black)",w:["Craig Tucker","Clyde Donovan","Tweek Tweak"]},
+{q:"Who is Craig Tucker known for doing to people?",a:"Flipping them off (giving the middle finger)",w:["Punching them","Ignoring them","Staring blankly"]},
+{q:"What is Tweek Tweak's problem?",a:"Extreme anxiety and over-caffeination",w:["Narcolepsy","Tourette's syndrome","ADHD"]},
+{q:"What is the name of the episode featuring a famous parody of The Lord of the Rings?",a:"The Return of the Fellowship of the Ring to the Two Towers",w:["Good Times with Weapons","Make Love, Not Warcraft","The Hobbit"]},
+{q:"What iconic moment happens to Kenny in every classic episode?",a:"He dies",w:["He cries","He faints","He gets injured"]},
+{q:"What is Cartman's most notorious act involving Scott Tenorman?",a:"Feeding Scott his own parents in chilli",w:["Tricking him into eating dog food","Framing him for a crime","Humiliating him at school"]},
+{q:"Who is Cartman's favourite singer whom he impersonates?",a:"Jennifer Lopez",w:["Celine Dion","Britney Spears","Taylor Swift"]},
+{q:"What is the name of the Canadian Prime Minister character in South Park?",a:"The Canadian Prime Minister (various parodies)",w:["Brian Boitano","Terrance","Phillip"]}
+]},
+
+americandad:{label:"American Dad",items:[
+{q:"Who created American Dad?",a:"Seth MacFarlane, Mike Barker and Matt Weitzman",w:["Seth MacFarlane alone","Trey Parker","Dan Harmon"]},
+{q:"What is the name of the main character?",a:"Stan Smith",w:["Francine Smith","Roger Smith","Hayley Smith"]},
+{q:"Who voices Stan Smith?",a:"Seth MacFarlane",w:["Scott Grimes","Wendy Schaal","Rachael MacFarlane"]},
+{q:"Who voices Francine Smith?",a:"Wendy Schaal",w:["Seth MacFarlane","Rachael MacFarlane","Dee Bradley Baker"]},
+{q:"Who voices Steve Smith?",a:"Scott Grimes",w:["Seth MacFarlane","Wendy Schaal","Dee Bradley Baker"]},
+{q:"Who voices Hayley Smith?",a:"Rachael MacFarlane",w:["Wendy Schaal","Seth MacFarlane","Scott Grimes"]},
+{q:"Who voices Roger the alien?",a:"Seth MacFarlane",w:["Scott Grimes","Dee Bradley Baker","Wendy Schaal"]},
+{q:"Who voices Klaus the goldfish?",a:"Dee Bradley Baker",w:["Seth MacFarlane","Scott Grimes","Wendy Schaal"]},
+{q:"What is Roger's species?",a:"Grey alien",w:["Robot","Time traveller","Interdimensional being"]},
+{q:"Where does Roger normally live in the Smith house?",a:"The attic",w:["The basement","The garage","Under the stairs"]},
+{q:"What is Stan Smith's job?",a:"CIA agent",w:["FBI agent","NSA agent","Army officer"]},
+{q:"What organisation does Stan work for?",a:"CIA (Central Intelligence Agency)",w:["NSA","FBI","Homeland Security"]},
+{q:"What is the name of Stan's CIA boss?",a:"Avery Bullock",w:["Jack Smith","Greg Corbin","Dick Reynolds"]},
+{q:"Who voices Avery Bullock?",a:"Patrick Stewart",w:["Seth MacFarlane","Scott Grimes","Dee Bradley Baker"]},
+{q:"Why does Klaus have a fish body?",a:"His brain was transplanted into a fish by East German scientists",w:["He was cursed","He chose it","He was born that way"]},
+{q:"What was Klaus before his brain was transplanted?",a:"An East German Olympic ski jumper",w:["A Russian spy","A West German scientist","An Austrian artist"]},
+{q:"What is the name of the talking bear who lives with the Smiths?",a:"Jeff Fischer — wait, who is Jeff Fischer?",a:"Hayley's husband",w:["Steve's friend","Stan's partner","Roger's friend"]},
+{q:"What is the name of Hayley's husband?",a:"Jeff Fischer",w:["Barry Robinson","Snot Lonstein","Toshi Yoshida"]},
+{q:"What are the names of Steve's three main friends?",a:"Snot, Barry and Toshi",w:["Clyde, Barry and Toshi","Nelson, Barry and Snot","Barry, Toshi and Craig"]},
+{q:"In which town do the Smiths live?",a:"Langley Falls, Virginia",w:["Quahog, Rhode Island","Springfield","Arlen, Texas"]},
+{q:"What network did American Dad originally air on?",a:"Fox",w:["TBS","Adult Swim","Comedy Central"]},
+{q:"What network did American Dad move to in 2014?",a:"TBS",w:["Adult Swim","Comedy Central","FX"]},
+{q:"In what year did American Dad first air?",a:"2005",w:["2003","2007","2001"]},
+{q:"What is Roger's most famous catchphrase?",a:"There are no words — Roger rarely has one catchphrase; he is known for personas",w:["I am Roger!","Persona time!","Langley Falls!"]},
+{q:"What is Stan's most repeated character trait?",a:"Extreme patriotism and conservatism",w:["Stupidity","Cowardice","Laziness"]},
+{q:"What is the name of the episode format where the show goes to a different genre entirely?",a:"American Dad is known for experimental episodes with radically different formats",w:["The special episode","The genre episode","The Rogu episode"]},
+{q:"Who is Rogu?",a:"Roger's tumour that became a small creature",w:["A CIA weapon","A baby alien","Stan's clone"]},
+{q:"What does Stan frequently do to Francine that is played as dark humour?",a:"Shoots her, punches her, or causes her various injuries in slapstick",w:["Ignores her","Cheats on her","Forgets her birthday"]},
+{q:"What is the name of Stan's rival at the CIA?",a:"Greg Corbin",w:["Dick Reynolds","Jack Smith","Barry Robinson"]},
+{q:"What instrument does Roger frequently play during his dramatic moments?",a:"Piano",w:["Guitar","Violin","Trumpet"]},
+{q:"What is the name of the neighbours who are a gay couple?",a:"Greg Corbin and Terry Bates",w:["Jeff and Barry","Snot and Toshi","Bullock and Barry"]},
+{q:"What is the name of Steve's nerdy best friend with the big nose?",a:"Snot (Barry's full name is Barry Robinson, Snot is Schmuely Lonstein)",w:["Barry Robinson","Toshi Yoshida","Bob Memari"]},
+{q:"What language does Toshi speak exclusively?",a:"Japanese",w:["Mandarin","Korean","Cantonese"]},
+{q:"What is unusual about Toshi's situation with his language?",a:"Everyone understands the plot from his Japanese but other characters never understand him",w:["He speaks subtitled only","He speaks both Japanese and English","He never speaks"]},
+{q:"What is the name of the season-long storyline about Roger's many personas?",a:"Roger takes on elaborate personas throughout the series",w:["The Persona Files","The Roger Chronicles","The Disguise Diary"]},
+{q:"What is Stan's catchphrase when something impresses or surprises him?",a:"Stan doesn't have one signature catchphrase unlike Peter or Homer",w:["Holy CIA!","God bless America!","Langley Falls forever!"]}
+]},
+
+futurama:{label:"Futurama",items:[
+{q:"Who created Futurama?",a:"Matt Groening and David X. Cohen",w:["Seth MacFarlane","Trey Parker","Dan Harmon"]},
+{q:"In what year is Futurama set?",a:"The 31st century (year 3000)",w:["The 25th century","The year 2500","The 30th century"]},
+{q:"What is the name of the main character?",a:"Philip J. Fry",w:["Bender Rodríguez","Turanga Leela","Professor Farnsworth"]},
+{q:"How did Fry end up in the future?",a:"He was accidentally cryogenically frozen on 31 December 1999",w:["He travelled in a time machine","He was abducted by aliens","He fell through a wormhole"]},
+{q:"Who voices Fry?",a:"Billy West",w:["John DiMaggio","Katey Sagal","Phil LaMarr"]},
+{q:"Who voices Bender?",a:"John DiMaggio",w:["Billy West","Phil LaMarr","Maurice LaMarche"]},
+{q:"Who voices Leela?",a:"Katey Sagal",w:["Tress MacNeille","Billy West","Lauren Tom"]},
+{q:"Who voices Professor Farnsworth?",a:"Billy West",w:["John DiMaggio","Phil LaMarr","David Herman"]},
+{q:"Who voices Hermes Conrad?",a:"Phil LaMarr",w:["John DiMaggio","Billy West","Maurice LaMarche"]},
+{q:"Who voices Amy Wong?",a:"Lauren Tom",w:["Katey Sagal","Tress MacNeille","Billy West"]},
+{q:"Who voices Zoidberg?",a:"Billy West",w:["John DiMaggio","Phil LaMarr","Maurice LaMarche"]},
+{q:"What is Bender's full name?",a:"Bender Bending Rodríguez",w:["Bender Futurama Rodríguez","Bender Breaking Rodríguez","Bender Killing Rodríguez"]},
+{q:"What is Bender's catchphrase when suggesting an extreme solution?",a:"Kill all humans!",w:["Bite my shiny metal ass!","Let's go already!","I'm 40% titanium!"]},
+{q:"What is Bender's other famous catchphrase?",a:"Bite my shiny metal ass!",w:["Kill all humans!","I'm going to build my own theme park!","Neat!"]},
+{q:"What is the name of the delivery company Fry, Leela and Bender work for?",a:"Planet Express",w:["Universal Deliveries","Future Express","Spaceship Inc"]},
+{q:"What is Professor Farnsworth's catchphrase when announcing bad news?",a:"Good news, everyone!",w:["Bad news everyone!","Attention staff!","I have an announcement!"]},
+{q:"Why is it ironic that Farnsworth says 'Good news, everyone'?",a:"The news is always terrible / dangerous",w:["He is deaf","He says it sarcastically","Good news is always bad in the future"]},
+{q:"What is Zoidberg's nationality / species?",a:"Decapodian (alien)",w:["Human","Robot","Omicronianx"]},
+{q:"What is Dr Zoidberg always searching for?",a:"Food and friendship / respect",w:["A wife","A spaceship","A medical degree"]},
+{q:"What is the name of the robot devil?",a:"The Robot Devil (Beelzebot)",w:["Calculon","Roberto","URL"]},
+{q:"What is the name of the soap opera robot actor?",a:"Calculon",w:["Bender","Flexo","Robot Santa"]},
+{q:"What is the name of Fry's nephew who becomes his grandfather? (The paradox)",a:"Professor Farnsworth — Fry is his own grandfather",w:["Hermes Conrad","Kif Kroker","Zapp Brannigan"]},
+{q:"Who is the incompetent military captain in Futurama?",a:"Zapp Brannigan",w:["Kif Kroker","Professor Farnsworth","URL"]},
+{q:"Who voices Zapp Brannigan?",a:"Billy West",w:["John DiMaggio","Phil LaMarr","Maurice LaMarche"]},
+{q:"Who is Zapp Brannigan's long-suffering assistant?",a:"Kif Kroker",w:["Hermes Conrad","URL","Smitty"]},
+{q:"What is Kif's species known for?",a:"Sighing and being put-upon",w:["Flying","Telekinesis","Time travel"]},
+{q:"What is the name of the ship in Futurama?",a:"Planet Express Ship",w:["The Nimbus","The Dark Matter Ship","The Hypnotoad"]},
+{q:"What is the name of the hypnotic frog-like creature that appears wordlessly?",a:"Hypnotoad",w:["Slurm Worm","Brain Slug","Omicron Beast"]},
+{q:"What addictive drink is secretly made from a giant worm's secretions?",a:"Slurm",w:["Bachelor Chow","Popplers","Soylent Green"]},
+{q:"In what year did Futurama first air?",a:"1999",w:["1997","2001","2003"]},
+{q:"What network originally aired Futurama?",a:"Fox",w:["Comedy Central","Adult Swim","Hulu"]},
+{q:"What network revived Futurama with new episodes in 2023?",a:"Hulu",w:["Netflix","Amazon Prime","Peacock"]},
+{q:"What is the name of the Central Bureaucracy's robot?",a:"Bureaucrat bot",w:["Calculon","Hedonismbot","Roberto"]},
+{q:"What does Hedonismbot always have?",a:"A bowl of grapes and excessive luxury",w:["A weapon","A robot companion","A sad expression"]},
+{q:"What is the name of the ancient one-eyed alien that Leela discovers she is?",a:"A mutant — Leela is a mutant from the sewers",w:["An alien","A robot","A clone"]},
+{q:"Who are Leela's parents?",a:"Morris and Munda (sewer mutants)",w:["Zapp Brannigan and Amy","Professor Farnsworth and Amy","Unknown aliens"]},
+{q:"What is the name of Fry's dog who waited for him for decades?",a:"Seymour",w:["Rex","Buster","Sparky"]},
+{q:"What is the most emotionally devastating Futurama episode about Fry's dog?",a:"Jurassic Bark",w:["The Luck of the Fryrish","Roswell That Ends Well","The Devil's Hands Are Idle Playthings"]},
+{q:"What is the name of the episode where Fry plays the holophonor?",a:"The Devil's Hands Are Idle Playthings",w:["Jurassic Bark","The Luck of the Fryrish","Amazon Women in the Mood"]},
+{q:"What instrument does Fry learn to play with the Robot Devil's hands?",a:"Holophonor",w:["Holodrum","Hologuitar","Space violin"]},
+{q:"What is the name of Hermes's wife?",a:"LaBarbara Conrad",w:["Amy Wong","Turanga Leela","Cubert Farnsworth"]},
+{q:"What does Hermes repeatedly calculate?",a:"Bureaucratic efficiency and statistics",w:["Fuel usage","Planet distances","Robot strength"]}
+]},
+
+rickandmorty:{label:"Rick and Morty",items:[
+{q:"Who created Rick and Morty?",a:"Justin Roiland and Dan Harmon",w:["Seth MacFarlane","Trey Parker","Matt Groening"]},
+{q:"What is Rick Sanchez's catchphrase mid-sentence?",a:"*Burp* (he burps constantly while talking)",w:["Wubba lubba dub dub!","Get schwifty!","And that's the wayyy the news goes!"]},
+{q:"What is Rick's famous catchphrase meaning he is in great pain?",a:"Wubba lubba dub dub!",w:["Get schwifty!","Aw geez!","I'm Pickle Rick!"]},
+{q:"What is Morty's most used phrase?",a:"Aw geez!",w:["Wubba lubba dub dub!","Get schwifty!","Oh man!"]},
+{q:"Who voiced both Rick and Morty originally?",a:"Justin Roiland",w:["Dan Harmon","Chris Parnell","Spencer Grammer"]},
+{q:"Who voices Rick and Morty from Season 7 after Justin Roiland's departure?",a:"Ian Cardoni (Rick) and Harry Belden (Morty)",w:["Dan Harmon and Chris Parnell","Chris Parnell and Spencer Grammer","New unknown actors"]},
+{q:"Who voices Jerry Smith?",a:"Chris Parnell",w:["Justin Roiland","Dan Harmon","Spencer Grammer"]},
+{q:"Who voices Beth Smith?",a:"Sarah Chalke",w:["Spencer Grammer","Kari Wahlgren","Justin Roiland"]},
+{q:"Who voices Summer Smith?",a:"Spencer Grammer",w:["Sarah Chalke","Kari Wahlgren","Tara Strong"]},
+{q:"What is Rick's full name?",a:"Rick Sanchez",w:["Richard Sanchez","Ricardo Sanchez","Rick Smith"]},
+{q:"What is Morty's full name?",a:"Morty Smith",w:["Morton Smith","Mortimer Smith","Morty Sanchez"]},
+{q:"In which US state do the Smiths live?",a:"The Pacific Northwest (left deliberately vague)",w:["Colorado","Texas","California"]},
+{q:"What is the name of the catch phrase episode featuring a song?",a:"Get Schwifty (from the episode of the same name)",w:["Wubba Lubba Dub Dub","Pickle Rick","Total Rickall"]},
+{q:"What is the name of the episode where Rick turns himself into a pickle?",a:"Pickle Rick",w:["Rick Potion No. 9","Meeseeks and Destroy","Total Rickall"]},
+{q:"What are Mr Meeseeks famous for?",a:"Existing only to complete a task then ceasing to exist, while screaming 'I'm Mr Meeseeks!'",w:["Being immortal","Being invisible","Being evil"]},
+{q:"What is Mr Meeseeks's catchphrase?",a:"I'm Mr Meeseeks! Look at me!",w:["Wubba lubba dub dub!","Get schwifty!","Existence is pain!"]},
+{q:"What is Mr Meeseeks's pain-filled cry?",a:"Existence is pain!",w:["I'm Mr Meeseeks!","Help me!","Make it stop!"]},
+{q:"What is the name of the parasitic creatures that implant false memories?",a:"Memory parasites (from Total Rickall episode)",w:["Cronenbergs","Meeseeks","Gazorpazorpians"]},
+{q:"What is Morty's catchphrase when Rick includes him in crazy plans?",a:"Aw geez Rick!",w:["Not again Rick!","Oh no Rick!","Wubba lubba!"]},
+{q:"What does Rick use to travel between dimensions?",a:"A portal gun",w:["A time machine","A spaceship","A teleporter"]},
+{q:"What is the name of Rick's spaceship's AI?",a:"The ship doesn't have a name — but what does the ship do uniquely?",a:"It drives itself and comments on the family",w:["It talks like HAL","It's powered by dark matter","It runs on Szechuan sauce"]},
+{q:"What McDonald's sauce did Rick famously want in Season 3?",a:"Szechuan sauce",w:["Sweet and sour sauce","Mulan sauce","McNugget dipping sauce"]},
+{q:"What is the name of the villain who is a different Rick — the main antagonist?",a:"Evil Morty",w:["Rick Prime","Doofus Rick","Council Rick"]},
+{q:"What is the name of the Council of Ricks' organisation?",a:"The Citadel of Ricks",w:["The Rick Council","The Alliance of Ricks","The Bureau of Ricks"]},
+{q:"What is the name of the inter-dimensional TV network Rick watches?",a:"Interdimensional Cable",w:["Dimension TV","Rick's TV","The Multiverse Network"]},
+{q:"What is the name of Morty's sister?",a:"Summer Smith",w:["Beth Smith","Jessica","Tammy"]},
+{q:"What is Beth's job?",a:"Horse surgeon",w:["Doctor","Vet","Nurse"]},
+{q:"What is Jerry's defining character trait?",a:"He is pathetically insecure and incompetent",w:["He is evil","He is brilliant","He is brave"]},
+{q:"What is the name of the alien who poses as a human and dates Summer?",a:"Tammy Guterman",w:["Brad","Ethan","Principal Gene"]},
+{q:"What is the name of the show within Rick and Morty featuring improvised alien TV?",a:"Interdimensional Cable / Ball Fondlers etc.",w:["Gazorpazorp TV","Meeseeks Box Show","Cronenberg TV"]},
+{q:"What planet is the 'Anatomy Park' episode set inside?",a:"Inside a homeless man named Ruben",w:["Mars","A dead alien","A Meeseeks"]},
+{q:"What does Rick call his garage lab?",a:"The garage / the lab (no specific name)",w:["Dimension C-137","The Smith Lab","Rick's Den"]},
+{q:"Which dimension are Rick and Morty from?",a:"Dimension C-137",w:["Dimension B-100","Dimension A-001","Dimension R&M"]},
+{q:"What is the name of Rick's nemesis who is always trying to capture him?",a:"Bird Person — no: who is always trying to arrest Rick?",a:"The Galactic Federation / Agent Concerto",w:["The Council of Ricks","The Citadel","Mr Nimbus"]},
+{q:"What is the name of Rick's old friend who is literally a bird person?",a:"Bird Person (Birdperson)",w:["Squanchy","Gear Head","Noob-Noob"]},
+{q:"What is the catchphrase of Squanchy?",a:"Squanch (uses the word 'squanch' for everything)",w:["Wubba lubba!","Get schwifty!","Aw geez!"]},
+{q:"What is the name of the episode often cited as the darkest in Rick and Morty?",a:"Rick Potion No. 9 / Auto Erotic Assimilation",w:["Pickle Rick","Meeseeks and Destroy","Total Rickall"]},
+{q:"What network airs Rick and Morty?",a:"Adult Swim (Cartoon Network)",w:["Comedy Central","Fox","Hulu"]},
+{q:"In what year did Rick and Morty first air?",a:"2013",w:["2011","2015","2010"]},
+{q:"What is the name of Rick's catchphrase when dismissing something as obvious?",a:"I turned myself into a pickle, Morty!",w:["Science!","That's just life!","And that's the wayyy the news goes!"]},
+{q:"What is Rick's alcoholic drink of choice?",a:"He drinks from a brown flask constantly",w:["Beer","Wine","Alien whiskey"]},
+{q:"Who killed Rick Prime — the original Rick who killed Rick C-137's wife?",a:"Rick C-137 (our Rick)",w:["Evil Morty","Morty Smith","The Council of Ricks"]}
+]},
+
+kingofthehill:{label:"King of the Hill",items:[
+{q:"Who created King of the Hill?",a:"Mike Judge and Greg Daniels",w:["Seth MacFarlane","Matt Groening","Dan Harmon"]},
+{q:"What is the main character's name?",a:"Hank Hill",w:["Dale Gribble","Bill Dauterive","Boomhauer"]},
+{q:"Who voices Hank Hill?",a:"Mike Judge",w:["Johnny Hardwick","Stephen Root","Kathy Najimy"]},
+{q:"Who voices Dale Gribble?",a:"Johnny Hardwick",w:["Mike Judge","Stephen Root","Toby Huss"]},
+{q:"Who voices Bill Dauterive?",a:"Stephen Root",w:["Mike Judge","Johnny Hardwick","Toby Huss"]},
+{q:"Who voices Boomhauer?",a:"Mike Judge",w:["Johnny Hardwick","Stephen Root","Toby Huss"]},
+{q:"Who voices Peggy Hill?",a:"Kathy Najimy",w:["Pamela Adlon","Lauren Tom","Brittany Murphy"]},
+{q:"Who voices Bobby Hill?",a:"Pamela Adlon",w:["Kathy Najimy","Brittany Murphy","Lauren Tom"]},
+{q:"Who voices Luanne Platter?",a:"Brittany Murphy",w:["Pamela Adlon","Kathy Najimy","Lauren Tom"]},
+{q:"Who voices Khan Souphanousinphone?",a:"Toby Huss",w:["Mike Judge","Johnny Hardwick","Stephen Root"]},
+{q:"In what fictional Texas city do the Hills live?",a:"Arlen, Texas",w:["Springfield","Langley Falls","Quahog"]},
+{q:"What does Hank sell for a living?",a:"Propane and propane accessories",w:["Lawn mowers","Beer","Hardware"]},
+{q:"What is the name of Hank's employer?",a:"Strickland Propane",w:["Arlen Propane","Texas Gas","Hill Propane"]},
+{q:"What is Hank's catchphrase?",a:"I tell you what!",w:["That's what I'm talkin' about!","Yep!","Dad gummit!"]},
+{q:"What does Hank say when he is confused or concerned?",a:"Bwah!",w:["I tell you what!","Dad gum it!","Good lord!"]},
+{q:"What does Dale Gribble always wear?",a:"A baseball cap and sunglasses",w:["A cowboy hat","A beret","A hard hat"]},
+{q:"What is Dale Gribble's conspiracy-related alias?",a:"Rusty Shackleford",w:["John Smith","Bob Jones","Dale Freeman"]},
+{q:"What is Dale's obsession?",a:"Government conspiracies",w:["Alien abductions","Beer","Baseball"]},
+{q:"What is Bill Dauterive's defining tragic characteristic?",a:"He is chronically depressed and cannot get over his ex-wife Lenore",w:["He is an alcoholic","He is a coward","He is unemployed"]},
+{q:"What is the name of Bill's ex-wife who destroyed him?",a:"Lenore",w:["Peggy","Janet","Tammy"]},
+{q:"What does Boomhauer speak in?",a:"Rapid, nearly incomprehensible mumbling",w:["Slow drawl","Perfect English","Rhyming slang"]},
+{q:"What sport does Hank obsessively love?",a:"Football (American)",w:["Baseball","Propane","Lawn care"]},
+{q:"What is the name of Hank's father?",a:"Cotton Hill",w:["Hank Hill Sr","Chuck Hill","Bobby Hill Sr"]},
+{q:"Who voices Cotton Hill?",a:"Toby Huss",w:["Mike Judge","Johnny Hardwick","Stephen Root"]},
+{q:"What happened to Cotton Hill in WWII that he loves to brag about?",a:"He had his shins blown off ('I killed fiddy men!')",w:["He was shot in the chest","He lost his arm","He was captured and escaped"]},
+{q:"What is Cotton Hill's catchphrase about the war?",a:"I killed fiddy men!",w:["I tell you what!","Bwah!","Yep yep yep!"]},
+{q:"What does Peggy Hill think she is an expert in?",a:"Spanish (she is terrible at it)",w:["Cooking","Writing","Fashion"]},
+{q:"What is Peggy's job?",a:"Substitute teacher and newspaper columnist",w:["Full-time teacher","Housewife","Real estate agent"]},
+{q:"What is the name of Hank's dog?",a:"Ladybird",w:["Ol' Yeller","Buck","Rex"]},
+{q:"What breed is Ladybird?",a:"Georgia bloodhound",w:["Labrador","Bloodhound","Beagle"]},
+{q:"What is Bobby Hill's comedy aspiration?",a:"To be a stand-up comedian",w:["To be an actor","To be a musician","To be a chef"]},
+{q:"What is the name of Bobby's girlfriend?",a:"Connie Souphanousinphone",w:["Luanne Platter","Gracie Law","Tammy Duvall"]},
+{q:"Who is Connie's father?",a:"Khan Souphanousinphone",w:["Kahn Jr","Minh's dad","Ted Wassanasong"]},
+{q:"Where is Khan from originally?",a:"Laos",w:["Vietnam","Cambodia","Thailand"]},
+{q:"What does Khan call Hank dismissively?",a:"Hillbilly",w:["Texas boy","Redneck","Country boy"]},
+{q:"What is the name of the alley where Hank and friends drink beer?",a:"The alley behind Hank's house",w:["The Arlen Alley","Gribble's Alley","Strickland's Alley"]},
+{q:"In what year did King of the Hill first air?",a:"1997",w:["1994","1999","2001"]},
+{q:"What network aired King of the Hill?",a:"Fox",w:["Adult Swim","Comedy Central","NBC"]},
+{q:"What is the name of Luanne's abusive mother who is often in prison?",a:"Hoyt's wife / Leanne Platter",w:["Cotton's wife","Peggy's sister","Dale's cousin"]},
+{q:"Who is Luanne's absent father?",a:"Hoyt Platter",w:["Dale Gribble","Bill Dauterive","Boomhauer"]},
+{q:"What is the name of the mega-church pastor Hank despises?",a:"Pastor Larry Sack / Reverend Stroup — most recurring is?",a:"Reverend Karen Stroup",w:["Pastor Brad","Reverend Simmons","Pastor Dale"]},
+{q:"What is Hank's borderline medical condition?",a:"Narrow urethra",w:["Low testosterone","Bad back","Flat feet"]},
+{q:"What does Hank refuse to believe modern propane can beat?",a:"Nothing — Hank believes propane beats everything; what does he distrust?",a:"Charcoal grilling",w:["Gas grilling","Wood grilling","Electric grilling"]},
+{q:"What is the name of Hank and Peggy's anniversary restaurant?",a:"Arlen's various restaurants — what is the name of the Japanese restaurant Bobby loves?",a:"Sugarfoot's",w:["The Arlen Grill","Mega Lo Mart Restaurant","Strickland's"]},
+{q:"What massive store opens in Arlen that threatens local businesses?",a:"Mega Lo Mart",w:["Cost Mart","Hank's World","Texas Depot"]}
+]}
+};
+
+let cat='familyguy',mode='quiz',deck=[],idx=0,score=0,answered=false;
+function shuffle(a){return[...a].sort(()=>Math.random()-.5)}
+function setCategory(c){
+  cat=c;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+c).classList.add('active');
+  mode==='quiz'?startQuiz():renderStudy();
+}
+function setMode(m){
+  mode=m;
+  document.getElementById('m-quiz').classList.toggle('active',m==='quiz');
+  document.getElementById('m-study').classList.toggle('active',m==='study');
+  m==='quiz'?startQuiz():renderStudy();
+}
+function startQuiz(){
+  deck=shuffle(DATA[cat].items);idx=0;score=0;answered=false;renderQuiz();
+}
+function renderQuiz(){
+  const main=document.getElementById('main');
+  if(idx>=deck.length){
+    const pct=Math.round(score/deck.length*100);
+    const msg=pct>=90?'🏆 Animation master!':pct>=70?'👍 Solid effort!':pct>=50?'📺 Getting there!':'💪 More episodes needed!';
+    main.innerHTML=`<div class="card score-card"><div class="score-big">${score}/${deck.length}</div><div class="score-label">${pct}% correct</div><div class="score-msg">${msg}</div><button class="restart-btn" onclick="startQuiz()">Try again</button></div>`;
+    return;
+  }
+  const item=deck[idx];
+  const opts=shuffle([item.a,...item.w.slice(0,3)]);
+  answered=false;
+  const safeOpts=opts.map((o,i)=>{
+    const safe=o.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    return `<button class="opt" id="opt${i}" data-val="${safe}" onclick="choose(${i})">${o}</button>`;
+  });
+  main.innerHTML=`<div class="stats"><div class="stat"><div class="stat-n">${idx+1}/${deck.length}</div><div class="stat-l">question</div></div><div class="stat"><div class="stat-n">${score}</div><div class="stat-l">correct</div></div><div class="stat"><div class="stat-n">${idx>0?Math.round(score/idx*100):'-'}%</div><div class="stat-l">accuracy</div></div></div><div class="card"><div class="question">${item.q}</div><div class="options" id="opts">${safeOpts.join('')}</div><div id="feedback"></div></div>`;
+}
+function choose(i){
+  if(answered)return;answered=true;
+  const item=deck[idx];
+  const btns=document.querySelectorAll('.opt');
+  const chosen=btns[i].dataset.val;
+  const correct=chosen===item.a;
+  if(correct)score++;
+  btns.forEach(b=>{
+    b.disabled=true;
+    if(b.dataset.val===item.a)b.classList.add('correct');
+    else if(b===btns[i]&&!correct)b.classList.add('wrong');
+  });
+  document.getElementById('feedback').innerHTML=correct
+    ?`<div class="feedback correct">✓ Correct!</div><button class="next-btn" onclick="nextQ()">Next →</button>`
+    :`<div class="feedback wrong">✗ Answer: ${item.a}</div><button class="next-btn" onclick="nextQ()">Next →</button>`;
+}
+function nextQ(){idx++;renderQuiz();}
+function renderStudy(){
+  const items=DATA[cat].items;
+  document.getElementById('main').innerHTML=`<input class="study-search" id="srch" placeholder="Filter questions and answers..." oninput="filterStudy()"><div class="card" id="study-list">${items.map(it=>`<div class="study-item" data-q="${it.q.toLowerCase().replace(/"/g,'&quot;')}" data-a="${it.a.toLowerCase().replace(/"/g,'&quot;')}"><span class="study-q">${it.q}</span><span class="study-a">${it.a}</span></div>`).join('')}</div>`;
+}
+function filterStudy(){
+  const q=document.getElementById('srch').value.toLowerCase();
+  document.querySelectorAll('.study-item').forEach(el=>{el.style.display=(el.dataset.q.includes(q)||el.dataset.a.includes(q))?'':'none';});
+}
+const tabBar=document.getElementById('tabs');
+Object.entries(DATA).forEach(([key,val])=>{
+  const b=document.createElement('button');
+  b.className='tab'+(key===cat?' active':'');
+  b.id='tab-'+key;b.textContent=val.label;
+  b.onclick=()=>setCategory(key);
+  tabBar.appendChild(b);
+});
+startQuiz();
+</script>
+</body>
+</html>
